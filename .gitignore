@@ -1,0 +1,8 @@
+# Ignora la cartella config contenente informazioni sensibili
+config/
+
+# Ignora la cartella __pycache__ e i file compilati di Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
