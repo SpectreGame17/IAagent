@@ -93,8 +93,29 @@ def transcribe_audio(audio_path):
     result = model.transcribe(audio, language="it")
     return result['text']
 
-def main():
+def user_input():
     audio_path = record_audio_to_file()
+    if audio_path:
+        processed_audio_path = preprocess_audio(audio_path)
+        transcription = transcribe_audio(processed_audio_path)
+
+         # Rimuove i file temporanei
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
+        if os.path.exists(processed_audio_path):
+            os.remove(processed_audio_path)
+     
+
+        # Sposta il modello sulla CPU e libera la cache GPU
+        model.to("cpu")
+        torch.cuda.empty_cache()
+        print("Modello spostato sulla CPU e GPU svuotata.")
+        return transcription
+    else:
+        transcription = None
+        return transcription
+    
+def telegram_input(audio_path):
     if audio_path:
         processed_audio_path = preprocess_audio(audio_path)
         transcription = transcribe_audio(processed_audio_path)
@@ -116,5 +137,5 @@ def main():
         return transcription
 
 if __name__ == "__main__":
-    result = main()
+    result = user_input()
     print("Trascrizione:", result)

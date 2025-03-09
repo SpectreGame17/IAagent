@@ -36,8 +36,7 @@ def generate_tasks(prompt):
     )
     
     response = ollama.chat(model="deepseek-r1:14b", messages=[{"role": "user", "content": instructive_prompt}])
-    # Debug: stampa la risposta grezza
-    #print("Raw response:", response)
+
     
     content = response.get("message", {}).get("content", "").strip()
     pattern = r"```json(.*?)```"
