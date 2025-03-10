@@ -119,6 +119,7 @@ def main(prompt):
     
     stop_deepseek()
     print("deepseek-r1:14b dovrebbe essere terminato.")
+    return tasks
 
 if __name__ == "__main__":
     # Esempio: comando complesso
