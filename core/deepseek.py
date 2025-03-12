@@ -3,7 +3,8 @@ import torch
 import subprocess
 import json
 import re
-
+import modules
+import modules.spotify
 
 def load_config(config_path=r"config\config.json"):
     with open(config_path, "r", encoding="utf-8") as f:
@@ -59,7 +60,7 @@ def execute_tasks(tasks):
         action = task.get("action", "")
         parameters = task.get("parameters", {})
         if category == "spotify":
-            handle_spotify(action, parameters)
+            handle_spotify(action, parameters, task)
         elif category == "notion":
             handle_notion(action, parameters)
         elif category == "email":
@@ -77,9 +78,31 @@ def execute_tasks(tasks):
         else:
             handle_other(action, parameters)
 
-# Funzioni placeholder per ciascuna categoria: implementale con la logica reale
-def handle_spotify(action, params):
+
+def handle_spotify(action, params, task):
     print(f"[Spotify] Esecuzione: {action} con parametri: {params}")
+    # Accediamo direttamente alle chiavi del dizionario 'parameters'
+    song_name = task['parameters'].get('song_name', None)  # Restituisce None se 'song_name' non esiste
+    artist = task['parameters'].get('artist', None)        # Restituisce None se 'artist' non esiste
+    playlist = task['parameters'].get('playlist', None)      # Restituisce None se 'playlist' non esiste
+    
+    querry  = f"{song_name} {artist}".strip()
+    
+    if action == "skip":
+        modules.spotify.play_next()  # Assicurati di chiamare la funzione con le parentesi
+    elif action == "previous":
+        modules.spotify.play_previous()
+    elif action == "pause":
+        modules.spotify.stop_playback()
+    elif action == "play":
+        if song_name is not None:
+            song = modules.spotify.search_song(querry)
+            modules.spotify.play_link(song['link'])
+        elif playlist is not None:
+            song = modules.spotify.search_song(playlist)
+            modules.spotify.play_link(song['link'])
+
+    
 
 def handle_notion(action, params):
     print(f"[Notion] Esecuzione: {action} con parametri: {params}")

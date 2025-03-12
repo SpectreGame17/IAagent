@@ -116,14 +116,16 @@ def get_playlist_link(playlist_id):
 
 def search_song(query):
     """
-    Cerca una canzone su Spotify in base alla query e restituisce informazioni sul primo risultato.
+    Cerca una canzone o playlist su Spotify in base alla query e restituisce informazioni sul primo risultato.
     
-    Restituisce un dizionario contenente il nome del brano, l'artista e il link.
+    Restituisce un dizionario contenente il nome, l'artista (per tracce) e il link.
     """
     try:
-        results = sp.search(q=query, type='track', limit=1)
+        results = sp.search(q=query, type='track,playlist', limit=1)  # Cerca sia tracce che playlist
         tracks = results.get('tracks', {}).get('items', [])
-        if tracks:
+        playlists = results.get('playlists', {}).get('items', [])
+
+        if tracks:  # Se ci sono tracce
             track = tracks[0]
             song_info = {
                 'name': track['name'],
@@ -131,10 +133,26 @@ def search_song(query):
                 'link': track['external_urls']['spotify']
             }
             return song_info
+        elif playlists:  # Se ci sono playlist
+            playlist = playlists[0]
+            playlist_info = {
+                'name': playlist['name'],
+                'link': playlist['external_urls']['spotify']
+            }
+            return playlist_info
         else:
             print("Nessun risultato trovato per la ricerca.")
             return None
     except Exception as e:
-        print("Errore nella ricerca della canzone:", e)
+        print("Errore nella ricerca:", e)
         return None
+
+
+def stop_playback(sp):
+    """
+    Ferma la riproduzione della musica in corso.
+    :param sp: oggetto spotipy.Spotify già autenticato
+    """
+    sp.pause_playback()
+    print("Riproduzione fermata.")
 

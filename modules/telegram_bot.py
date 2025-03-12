@@ -1,8 +1,7 @@
 import os
 import sys
 import logging
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 from pydub import AudioSegment
 from dotenv import load_dotenv
 
@@ -11,68 +10,52 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__) + "/.."))
 import core.whisper_util
 import core.deepseek
 
-# Configurazione base del logger
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Carica il file .env dalla cartella config
 env_path = os.path.join("config", ".env")
 load_dotenv(env_path)
-
-# Ottieni il token dal file .env
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
-# Funzione per inviare un messaggio
-async def send_message(update: Update, context: ContextTypes.DEFAULT_TYPE, messaggio: str):
-    if update.message:
-        await update.message.reply_text(messaggio)
+def process_text_message(text: str) -> str:
+    print(f"Messaggio ricevuto: {text}")
+    return core.deepseek.main(text)
 
-# Funzione per leggere e restituire il messaggio ricevuto
-async def echo_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    received_message = update.message.text  # Legge il testo del messaggio
-    print(f"Messaggio ricevuto: {received_message}")
-    replay = core.deepseek.main(received_message)
-    await send_message(update, context, replay)
-
-# Funzione per ricevere un messaggio vocale e salvarlo come file .wav
-async def receive_voice(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    voice_file = await update.message.voice.get_file()  # Ottieni il file audio
-    file_path = 'audio_received.ogg'  # Salva temporaneamente come file OGG
-    await voice_file.download_to_drive(file_path)
-
-    # Converte il file OGG in WAV
+def process_voice_message(file_path: str) -> str:
     audio = AudioSegment.from_ogg(file_path)
-    wav_file_path = 'audio_received.wav'  # Percorso per il file WAV
+    wav_file_path = 'audio_received.wav'
     audio.export(wav_file_path, format='wav')
     print(f"Audio ricevuto e salvato come {wav_file_path}")
-
+    
     # Rimuove il file OGG temporaneo, se esiste
     if os.path.exists(file_path):
         os.remove(file_path)
-
+    
     prompt = core.whisper_util.telegram_input(wav_file_path)
-    replay = core.deepseek.main(prompt)
-    await send_message(update, context, replay)
+    response = core.deepseek.main(prompt)
+    
+    return response
 
-    # Opzionale: rimuove anche il file WAV se non serve più
-    if os.path.exists(wav_file_path):
-        os.remove(wav_file_path)
+# Funzione per inviare una risposta all'utente
+async def echo_message(update, context):
+    response = process_text_message(update.message.text)
+    await update.message.reply_text(response)
 
-# Funzione per avviare il bot con il comando /start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def receive_voice(update, context):
+    voice_file = await update.message.voice.get_file()
+    file_path = 'audio_received.ogg'
+    await voice_file.download_to_drive(file_path)
+    response = process_voice_message(file_path)
+    await update.message.reply_text(response)
+
+async def start(update, context):
     await update.message.reply_text("Ciao! Sono il tuo assistente digitale")
 
-async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Funzione che gestisce gli errori sollevati durante il processing degli update.
-    """
-    # Logga l'errore con tutte le informazioni utili
+async def error_handler(update, context):
     logger.error("Update caused error: %s", context.error, exc_info=context.error)
-    
-    # Se possibile, notifica l'utente dell'errore
     if update and update.effective_message:
         try:
             await update.effective_message.reply_text("Ops, qualcosa è andato storto. Riprova più tardi.")
@@ -81,16 +64,10 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
-    
-    # Aggiunge i gestori per i comandi e i messaggi
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo_message))
     app.add_handler(MessageHandler(filters.VOICE, receive_voice))
-    
-    # Registra l'error handler
     app.add_error_handler(error_handler)
-    
-    # Avvia il bot in modalità polling
     app.run_polling()
     print("Il bot è pronto.")
 
